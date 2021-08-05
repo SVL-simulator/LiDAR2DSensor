@@ -1,0 +1,77 @@
+/**
+* Copyright (c) 2021 LG Electronics, Inc.
+*
+* This software contains code licensed as described in LICENSE.
+*
+*/
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+
+#pragma kernel CubeCompute                  CUBE_COMPUTE=CubeCompute
+#pragma kernel CubeComputeComp              CUBE_COMPUTE=CubeComputeComp          COMPENSATED
+
+CBUFFER_START(cb0)
+    int _MeasurementsPerRotation;
+    float _LatitudeAngle;
+
+    float4 _Origin;
+    float4x4 _Transform;
+    float4x4 _RotMatrix;
+    float4 _PackedVec; // x: distance max, y: angle delta, z: distance min, w: start longitude offset
+CBUFFER_END
+
+TextureCube<float4> _InputCubemapTexture;
+RWStructuredBuffer<float4> _Output;
+
+SamplerState sampler_LinearClamp;
+SamplerState sampler_InputCubemapTexture;
+
+float DecodeFloatRGB(float3 rgb)
+{
+    return rgb.r + rgb.g / 255.0f + rgb.b / 65025.0f;
+}
+
+[numthreads(128,1,1)]
+void CUBE_COMPUTE (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint) _MeasurementsPerRotation)
+        return;
+
+    const float lat = _LatitudeAngle;
+    const float lon = _PackedVec.w + id.x * _PackedVec.y;
+    float3 dir = normalize(LatlongToDirectionCoordinate(float2(lon, lat)));
+
+    const float4 sample = _InputCubemapTexture.SampleLevel(sampler_InputCubemapTexture, dir, 0);
+    const float4 sampleBL = _InputCubemapTexture.SampleLevel(sampler_LinearClamp, dir, 0);
+
+    float distance = 2.0f * DecodeFloatRGB(sample.rgb);
+    const float distanceBL = 2.0f * DecodeFloatRGB(sampleBL.rgb);
+
+    float intensity = sample.a;
+    const float intensityBL = sampleBL.a;
+
+    const float distDiff = abs(distance - distanceBL) * _PackedVec.x;
+    if (distDiff < 0.1)
+    {
+        distance = distanceBL;
+        intensity = intensityBL;
+    }
+
+    const int index = id.x + id.y * _MeasurementsPerRotation;
+
+    if (distance * _PackedVec.x < _PackedVec.z)
+    {
+        _Output[index] = float4(0, 0, 0, 0);
+    }
+    else
+    {
+        dir = mul(_RotMatrix, float4(dir, 1)).xyz;
+        float3 position = _Origin.xyz + normalize(dir) * distance * _PackedVec.x;
+
+        #ifndef COMPENSATED
+        position = mul(_Transform, float4(position, 1)).xyz;
+        #endif
+
+        _Output[index] = float4(position, intensity);
+    }
+}
