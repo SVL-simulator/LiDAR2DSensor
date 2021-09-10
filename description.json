@@ -1,7 +1,7 @@
 {
   "name": "LiDAR 2D Sensor",
   "accessType": "public",
-  "description": "This sensor returns laser scan data.",
+  "description": "This sensor returns laser scan data.\nSee {{DOCS_HOST}}/docs/simulation-content/sensors-list/#lidar2d for more details.",
   "licenseName": "LG Content",
   "copyright": "LG Electronics Inc.",
   "tags": [
