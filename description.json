@@ -1,7 +1,7 @@
 {
   "name": "LiDAR 2D Sensor",
-  "accessType": "private",
-  "description": "This sensor returns laser scan data",
+  "accessType": "public",
+  "description": "This sensor returns laser scan data.",
   "licenseName": "LG Content",
   "copyright": "LG Electronics Inc.",
   "tags": [
@@ -13,6 +13,9 @@
     },
     {
       "name": "Default"
+    },
+    {
+      "name": "Robotics"
     }
   ],
   "id": "2392cabf-47b4-4410-bd81-37545b78feca"
